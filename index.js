@@ -33,6 +33,7 @@ async function run() {
     await client.connect();
     const database=client.db("hireloop_auth")
     const jobsCollection=database.collection("jobs");
+    const companyCollection=database.collection("company");
 
 
 
@@ -59,11 +60,26 @@ async function run() {
 
 
 
+    // post company data
+
+    app.post('/company',async(req,res)=>{
+      const data=req.body;
+      const result=await companyCollection.insertOne(data);
+      res.send(result);
+    })
 
 
-
-
-
+  app.get('/company',async(req,res)=>{
+    const recruiterId=req.query.recruiterId
+    console.log(recruiterId);
+    
+    const query={
+      recruiterId:recruiterId
+    }
+    const cursor=await companyCollection.find(query)
+    const result=await cursor.toArray();
+    res.send(result);
+  })
 
 
 
