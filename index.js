@@ -36,7 +36,8 @@ async function run() {
     const companyCollection = database.collection("company");
     const applicationsColl = database.collection("applications");
     const planColl = database.collection("plans");
-
+    const subscriptionColl = database.collection('subscriptions');
+    const userCollection=database.collection("user");
 
 
     app.get('/jobs', async (req, res) => {
@@ -121,8 +122,8 @@ async function run() {
     // get user job application
     app.get('/job-application', async (req, res) => {
       const query = {}
-      console.log('queary',query);
-      
+      console.log('queary', query);
+
       if (req.query.jobId) {
         query.applicantId = req.query.jobId
       }
@@ -131,14 +132,40 @@ async function run() {
     })
 
     // get plans
-    app.get('/api/plans',async(req,res)=>{
-      const query={}
-      if(req.query.plan_id){
-        query.planId=req.query.plan_id
+    app.get('/api/plans', async (req, res) => {
+      const query = {}
+      if (req.query.plan_id) {
+        query.planId = req.query.plan_id
       }
-      const result=await planColl.findOne(query);
+      const result = await planColl.findOne(query);
       res.send(result)
     })
+
+    // post subscription details in db
+    app.post('/api/plans', async (req, res) => {
+      const data = req.body;
+      console.log('server data for sub',data);
+      
+      const plansData = {
+        ...data,
+        createdAt: new Date()
+      }
+      const result = await subscriptionColl.insertOne(plansData);
+
+
+      const filter = { email: data.email }
+      const updatedDoc = {
+        $set: {
+          plans: data.planId
+        }
+      }
+      const updateResult=await userCollection.updateOne(filter,updatedDoc);
+      res.send(updateResult)
+      
+    })
+
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
