@@ -37,7 +37,7 @@ async function run() {
     const applicationsColl = database.collection("applications");
     const planColl = database.collection("plans");
     const subscriptionColl = database.collection('subscriptions');
-    const userCollection=database.collection("user");
+    const userCollection = database.collection("user");
 
 
     app.get('/jobs', async (req, res) => {
@@ -93,16 +93,18 @@ async function run() {
       res.send(result);
     })
 
+    // get all company data
+    app.get('/api/company', async (req, res) => {
+      const result = await companyCollection.find().toArray();
+      res.send(result);
+    })
+
 
     app.get('/company', async (req, res) => {
       const recruiterId = req.query.recruiterId
-      console.log(recruiterId);
-
-
-      // if(!recruiterId){
-      //   return Response.json(null);
-      // }
-
+      console.log('recruiter id',recruiterId);
+      console.log(req.query);
+ 
       const query = {
         recruiterId: recruiterId
       }
@@ -122,10 +124,22 @@ async function run() {
     // get user job application
     app.get('/job-application', async (req, res) => {
       const query = {}
-      console.log('queary', query);
 
       if (req.query.jobId) {
         query.applicantId = req.query.jobId
+      }
+      const result = await applicationsColl.find(query).toArray();
+      res.send(result);
+    })
+
+
+    // get user job application by user id
+    app.get('/applied-jobs', async (req, res) => {
+      const query = {}
+      console.log('queary', req.query.applicantId);
+
+      if (req.query.applicantId) {
+        query.applicantId = req.query.applicantId
       }
       const result = await applicationsColl.find(query).toArray();
       res.send(result);
@@ -144,8 +158,8 @@ async function run() {
     // post subscription details in db
     app.post('/api/plans', async (req, res) => {
       const data = req.body;
-      console.log('server data for sub',data);
-      
+      console.log('server data for sub', data);
+
       const plansData = {
         ...data,
         createdAt: new Date()
@@ -159,11 +173,29 @@ async function run() {
           plans: data.planId
         }
       }
-      const updateResult=await userCollection.updateOne(filter,updatedDoc);
+      const updateResult = await userCollection.updateOne(filter, updatedDoc);
       res.send(updateResult)
-      
+
     })
 
+
+    // update the approval for companies
+    app.patch('/api/companies/:id', async (req, res) => {
+      const id = req.params.id;
+      const updatedCompaniesField = req.body?.status
+      const filter = {
+        _id: new ObjectId(id)
+      }
+      const updatedDoc = {
+        $set: {
+          status: updatedCompaniesField
+        }
+      }
+
+      const result = await companyCollection.updateOne(filter, updatedDoc)
+      res.send(result);
+
+    })
 
 
 
