@@ -15,7 +15,6 @@ app.use(cors());
 
 
 
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PSS}@cluster0.mndvni1.mongodb.net/?appName=Cluster0`
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -38,6 +37,62 @@ async function run() {
     const planColl = database.collection("plans");
     const subscriptionColl = database.collection('subscriptions');
     const userCollection = database.collection("user");
+    const sessionCollection = database.collection("session");
+
+
+
+
+
+    const verifyToken = async (req, res, next) => {
+      console.log('headers', req.headers.authorization);
+      const tokenHead = req?.headers?.authorization
+      if (!tokenHead) {
+        return res.status(401).send({ message: "unauthorize" })
+      }
+
+      const token = tokenHead.split(" ")[1]
+      if (!token) {
+        return res.status(401).send({ message: "unauthorize" })
+      }
+      const query = { token: token }
+      const session = await sessionCollection.findOne(query);
+      const userId = session.userId;
+      const userQuery = {
+        _id: userId
+      }
+      const user = await userCollection.findOne(userQuery);
+
+      // set the user in req
+      req.user = user
+
+      next()
+
+    }
+
+    // must be used in after verify token
+    const verifySeeker = (req, res, next) => {
+      if (req.user.role !== 'seeker') {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      next();
+    }
+    // must be used in after verify token
+    const verifyRecruiter = (req, res, next) => {
+      if (req.user.role !== 'recruiter') {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      next();
+    }
+    // must be used in after verify token
+    const verifyAdmin = (req, res, next) => {
+      if (req.user.role !== 'admin') {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      next();
+    }
+
+
+
 
 
     app.get('/jobs', async (req, res) => {
@@ -94,7 +149,7 @@ async function run() {
     })
 
     // get all company data
-    app.get('/api/company', async (req, res) => {
+    app.get('/api/company', verifyToken,verifyAdmin, async (req, res) => {
       const result = await companyCollection.find().toArray();
       res.send(result);
     })
@@ -102,9 +157,9 @@ async function run() {
 
     app.get('/company', async (req, res) => {
       const recruiterId = req.query.recruiterId
-      console.log('recruiter id',recruiterId);
+      console.log('recruiter id', recruiterId);
       console.log(req.query);
- 
+
       const query = {
         recruiterId: recruiterId
       }
@@ -134,9 +189,12 @@ async function run() {
 
 
     // get user job application by user id
-    app.get('/applied-jobs', async (req, res) => {
+    app.get('/applied-jobs', verifyToken, verifySeeker, async (req, res) => {
       const query = {}
-      console.log('queary', req.query.applicantId);
+      console.log(req.user, req.query.applicantId);
+      if (req.user._id !== req.query.applicantId) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
 
       if (req.query.applicantId) {
         query.applicantId = req.query.applicantId
@@ -180,7 +238,7 @@ async function run() {
 
 
     // update the approval for companies
-    app.patch('/api/companies/:id', async (req, res) => {
+    app.patch('/api/companies/:id', verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedCompaniesField = req.body?.status
       const filter = {
